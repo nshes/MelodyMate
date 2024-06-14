@@ -30,7 +30,7 @@ class User(db.Model):
     password = db.Column(db.String, nullable = False)
 
     def __repr__(self):
-        return f'{self.uid} {self.id}'
+        return f'{self.uid} {self.email}'
         
 with app.app_context():
     db.create_all()
@@ -44,26 +44,33 @@ def home():
     except:
         pass
 
-    url = "https://www.melon.com/chart/"
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36'}
-    data = requests.get(url, headers=headers)
-    soup = BeautifulSoup(data.text, 'html.parser')
-
     melon_data = []
-    trs = soup.select('table > tbody > tr')
-    for tr in trs:
-        rank = tr.select_one('.rank').text
-        title = tr.select_one('.rank01 > span > a').text
-        artist = tr.select_one('.rank02 > a').text
-        image = tr.select_one('img')['src']
-        melon_data.append({'rank': rank, 'artist': artist, 'title': title, 'image': image})
+    try:
+        url = "https://www.melon.com/chart/"
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36'}
+        data = requests.get(url, headers=headers)
+        soup = BeautifulSoup(data.text, 'html.parser')
 
-    return render_template('music.html', melon_data=melon_data, music_data=music_data)
+        trs = soup.select('table > tbody > tr')
+        for tr in trs:
+            rank = tr.select_one('.rank').text
+            title = tr.select_one('.rank01 > span > a').text
+            artist = tr.select_one('.rank02 > a').text
+            image = tr.select_one('img')['src']
+            melon_data.append({'rank': rank, 'artist': artist, 'title': title, 'image': image})
+    except:
+        pass
+
+    return render_template('music.html', music_data=music_data, melon_data=melon_data)
 
 @app.route("/register", methods=['POST'])
 def register():
     email = request.form['email']
     password = request.form['password']
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user:
+        flash("이미 존재하는 이메일 주소입니다. 다른 이메일을 사용하세요.", "danger")
+        return redirect(url_for('home') + '#registrationModal')
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
     new_user = User(email=email, password=hashed_password)
     db.session.add(new_user)
